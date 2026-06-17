@@ -1,0 +1,42 @@
+# Tinfoil Container Configuration — vita-agent model test (Opus-distill GGUF)
+#
+# PUBLIC REPO — attestation anchor for an EPHEMERAL test container.
+# Serves TeichAI/gemma-4-31B-it-Claude-Opus-Distill-v2 (GGUF, q4_k_m) in-enclave
+# on the control.inf6 H200 via llama.cpp llama-server. Delete after testing.
+
+cvm-version: 0.7.5
+cpus: 8
+memory: 65536          # 64 GB — mmap headroom for the GGUF directory mount
+gpus: 1                # the H200 on control.inf6
+
+models:
+  - name: "gemma-4-31b-it-claude-opus-distill-v2-gguf"
+    repo: "TeichAI/gemma-4-31B-it-Claude-Opus-Distill-v2-GGUF@3899763609d3bf7ef024484f4956ba27e02d7a11"
+    mpk:  "b2485f6732ea540c9e7b3fa2d92d706cca981502e468d51406417da890dd0d8c_211286310912_e45e88bd-3b4a-5382-b6e8-e7db12ef01d6"
+
+containers:
+  - name: llama
+    image: "ghcr.io/ggml-org/llama.cpp@sha256:aead4f4d77679873a40036c984702c8a9a52ab52275b0702e2fa68b4bc9a5f03"
+    runtime: nvidia
+    gpus: all
+    command:
+      - "-m"
+      - "/tinfoil/mpk/mpk-b2485f6732ea540c9e7b3fa2d92d706cca981502e468d51406417da890dd0d8c/gemma-4-31B-it-Claude-Opus-Distill.q4_k_m.gguf"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "-ngl"
+      - "99"
+      - "-c"
+      - "8192"
+      - "--alias"
+      - "opus-distill"
+
+shim:
+  upstream-port: 8080
+  paths:
+    - /health
+    - /v1/models
+    - /v1/chat/completions
+    - /v1/completions
