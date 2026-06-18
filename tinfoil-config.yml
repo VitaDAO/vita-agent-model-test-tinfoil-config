@@ -19,7 +19,7 @@ models:
 
 containers:
   - name: vita-agent
-    image: "ghcr.io/vitadao/vita-agent:feat-local-inenclave-model@sha256:eeca49b60d7c22a203c3832574953ede1be2639b2bd7e6e13e21827ae0ce4b0c"
+    image: "ghcr.io/vitadao/vita-agent:feat-local-inenclave-model@sha256:fb65c28198373689f6b7cc5f81268a666ad6fa9f9c851e3981306658fe969454"
     registry:
       username: DobrinAlexandru
       password_secret: VITA_AGENT_GHCR_TOKEN
@@ -80,6 +80,7 @@ containers:
       - VITA_AGENT_CHAT_TEMPERATURE: "0.6"
       - VITA_AGENT_CHAT_TOP_P: "0.95"
       - VITA_AGENT_CHAT_TOP_K: "20"
+      - VITA_AGENT_CHAT_MIN_P: "0"
       # Raised cap: reasoning tokens precede the answer; 1200 (thinking-off
       # default) would truncate syntheses.
       - VITA_AGENT_CHAT_MAX_TOKENS: "2500"
