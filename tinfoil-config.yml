@@ -1,6 +1,6 @@
 # Tinfoil Container Configuration — vita-agent model test
 # PUBLIC REPO — attestation anchor for an EPHEMERAL test container.
-# Serves a GGUF model in-enclave on the control.inf6 H200 via llama.cpp. Delete after testing.
+# Serves a model in-enclave on the control.inf6 H200. Delete after testing.
 
 cvm-version: 0.7.5
 cpus: 8
@@ -8,28 +8,28 @@ memory: 65536
 gpus: 1
 
 models:
-  - name: "qwen3-6-35b-a3b-uncensored-hauhaucs-aggressive"
-    repo: "HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive@f12a584fecbeb5f20001130d8ecd66c9327ae685"
-    mpk:  "3a8b883faf1676cf4774def0b5a9ddc1cc60c8a1f1c543d240fb2b2c7331948b_203779735552_928ee02f-b37c-53fa-afa0-8e8364f1762d"
+  - name: "qwable-v1"
+    repo: "lordx64/Qwable-v1@ea97e8f7df3f1035959d75dd6e5710a1022938f5"
+    mpk:  "3cf1d6e9da3181100fbbc12b1774d6fa13a4b253bb71f576e48eb95b5b5f4511_71923920896_291f501a-4b21-5e35-ac57-63afc66937a1"
 
 containers:
-  - name: llama
-    image: "ghcr.io/ggml-org/llama.cpp@sha256:aead4f4d77679873a40036c984702c8a9a52ab52275b0702e2fa68b4bc9a5f03"
+  - name: vllm
+    image: "vllm/vllm-openai@sha256:6d8429e38e3747723ca07ee1b17972e09bb9c51c4032b266f24fb1cc3b22ed8f"
     runtime: nvidia
     gpus: all
+    ipc: host
     command:
-      - "-m"
-      - "/tinfoil/mpk/mpk-3a8b883faf1676cf4774def0b5a9ddc1cc60c8a1f1c543d240fb2b2c7331948b/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf"
+      - "--model"
+      - "/tinfoil/mpk/mpk-3cf1d6e9da3181100fbbc12b1774d6fa13a4b253bb71f576e48eb95b5b5f4511"
+      - "--served-model-name"
+      - "qwable"
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8080"
-      - "-ngl"
-      - "99"
-      - "-c"
+      - "--trust-remote-code"
+      - "--max-model-len"
       - "8192"
-      - "--alias"
-      - "qwen-aggressive"
 
 shim:
   upstream-port: 8080
