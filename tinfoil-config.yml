@@ -5,33 +5,29 @@ memory: 65536
 gpus: 1
 
 models:
-  - name: "qwable-v1"
-    repo: "lordx64/Qwable-v1@ea97e8f7df3f1035959d75dd6e5710a1022938f5"
-    mpk:  "3cf1d6e9da3181100fbbc12b1774d6fa13a4b253bb71f576e48eb95b5b5f4511_71923920896_291f501a-4b21-5e35-ac57-63afc66937a1"
+  - name: "qwen3-6-35b-a3b-claude-4-6-opus-reasoning-distilled-gguf"
+    repo: "hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF@21c5c33e749f78d01a12091301509f70d1565562"
+    mpk:  "1d9243855dbb54dcbdb53df4dc9574a45ccffb1a7013744d09fbcdb44eea84b0_111313199104_48023144-2fc9-538b-b7b7-633cf82a145b"
 
 containers:
-  - name: vllm
-    image: "vllm/vllm-openai@sha256:6d8429e38e3747723ca07ee1b17972e09bb9c51c4032b266f24fb1cc3b22ed8f"
+  - name: llama
+    image: "ghcr.io/ggml-org/llama.cpp@sha256:aead4f4d77679873a40036c984702c8a9a52ab52275b0702e2fa68b4bc9a5f03"
     runtime: nvidia
     gpus: all
-    ipc: host
     command:
-      - "--model"
-      - "/tinfoil/mpk/mpk-3cf1d6e9da3181100fbbc12b1774d6fa13a4b253bb71f576e48eb95b5b5f4511"
-      - "--served-model-name"
-      - "qwable"
+      - "-m"
+      - "/tinfoil/mpk/mpk-1d9243855dbb54dcbdb53df4dc9574a45ccffb1a7013744d09fbcdb44eea84b0/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf"
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8080"
-      - "--trust-remote-code"
-      - "--max-model-len"
+      - "-ngl"
+      - "99"
+      - "-c"
       - "8192"
-      - "--enable-auto-tool-choice"
-      - "--tool-call-parser"
-      - "hermes"
-      - "--reasoning-parser"
-      - "deepseek_r1"
+      - "--jinja"
+      - "--alias"
+      - "qwen-opus"
 
 shim:
   upstream-port: 8080
