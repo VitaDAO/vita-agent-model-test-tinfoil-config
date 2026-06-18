@@ -28,7 +28,12 @@ containers:
       - VITA_AGENT_PORT: "8787"
       - STORAGE_BACKEND: "supabase"
       - VITA_AGENT_ENABLE_NEED_FILL: "0"
-      - STRICT_PROD: "1"
+      # GREEN is a .debug enclave (SSH for diagnosis). STRICT_PROD=1 bans a
+      # .debug enclave URL (boot.py Gate #15), so it's off here — the gates are
+      # meta-assertions, not runtime security; sealed-DEK / HPKE-Aubrai / tracing
+      # / JWKS are pinned explicitly below, so the security path matches prod.
+      # PROD (non-debug) sets STRICT_PROD=1.
+      - STRICT_PROD: "0"
       - AAD_REQUIRED: "0"
       - VITA_ROUTING_MODE: "direct"
       - OPENAI_AGENTS_DISABLE_TRACING: "1"
