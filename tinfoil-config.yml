@@ -1,4 +1,12 @@
-# Tinfoil Container Configuration — vita-agent model test (EPHEMERAL).
+# Tinfoil Container Configuration — vita-agent GREEN (EPHEMERAL staging).
+#
+# Full app + in-enclave model, on the single H200. This proves the integrated
+# path (app ↔ localhost llama ↔ Aubrai, attestation, capsule) before the prod
+# cutover. NOT the prod attestation anchor — prod stays VitaDAO/vita-agent-tinfoil-config.
+#
+# app (8787) → llama (localhost:8080) over the shared host netns (Tinfoil runs
+# containers --network host). PHI never leaves the SEV-SNP enclave.
+
 cvm-version: 0.7.5
 cpus: 8
 memory: 65536
@@ -10,6 +18,79 @@ models:
     mpk:  "1d9243855dbb54dcbdb53df4dc9574a45ccffb1a7013744d09fbcdb44eea84b0_111313199104_48023144-2fc9-538b-b7b7-633cf82a145b"
 
 containers:
+  - name: vita-agent
+    image: "ghcr.io/vitadao/vita-agent:feat-local-inenclave-model@sha256:eeca49b60d7c22a203c3832574953ede1be2639b2bd7e6e13e21827ae0ce4b0c"
+    registry:
+      username: DobrinAlexandru
+      password_secret: VITA_AGENT_GHCR_TOKEN
+
+    env:
+      - VITA_AGENT_PORT: "8787"
+      - STORAGE_BACKEND: "supabase"
+      - VITA_AGENT_ENABLE_NEED_FILL: "0"
+      - STRICT_PROD: "1"
+      - AAD_REQUIRED: "0"
+      - VITA_ROUTING_MODE: "direct"
+      - OPENAI_AGENTS_DISABLE_TRACING: "1"
+      - VITA_AGENT_ENCLAVE_URL: "https://vita-agent-model-test.debug.vitality-now.containers.tinfoil.dev/"
+      - VITA_AGENT_REQUIRE_SEALED_DEK: "1"
+      - VITA_AGENT_ACCEPT_LEGACY_DEK_HEADERS: "0"
+      - VITA_AGENT_JSON_LOGS: "1"
+      - VITA_AGENT_PROVIDER_HEALTH_DIAGNOSTICS: "0"
+
+      # Sentry tagged 'staging' so green errors don't pollute prod.
+      - SENTRY_ENVIRONMENT: "staging"
+      - SENTRY_RELEASE: "vita-agent@14911bb"
+      - VITA_AGENT_VERSION: "vita-agent@14911bb"
+      - SENTRY_TRACES_SAMPLE_RATE: "0.1"
+      - SENTRY_PROFILES_SAMPLE_RATE: "0"
+
+      - SUPABASE_JWT_VERIFY_MODE: "jwks"
+      - SUPABASE_JWKS_URL: "https://cuvszjeaitakfvccvofl.supabase.co/auth/v1/.well-known/jwks.json"
+
+      - VITA_AGENT_RATE_LIMIT_RPM: "60"
+      - VITA_AGENT_MAX_REQUEST_BYTES: "2097152"
+      - VITA_AGENT_CORS_ORIGINS: "https://app.vitadao.com,https://staging-app.vitadao.com"
+      - VITA_AGENT_EMBED_MODEL: "BAAI/bge-base-en-v1.5"
+      - VITA_AGENT_PERSONA_REFRESH_EVERY: "10"
+      - VITA_AGENT_AUTO_EXTRACT: "1"
+
+      # Job autorunner OFF on green — keeps the box quiet during validation
+      # (no surprise Research Radar jobs spending USDC / competing for the GPU).
+      # Jobs are exercised explicitly as a Phase-2 gate.
+      - VITA_AGENT_JOB_AUTORUN: "0"
+
+      # Aubrai routing (real x402 HPKE; same funded wallet as prod — minimize calls)
+      - AUBRAI_MODE: "x402"
+      - AUBRAI_DEBUG: "0"
+      - AUBRAI_FAST: "0"
+
+      # ── In-enclave model (provider=local). No remote inference, no hairpin. ──
+      - VITA_AGENT_MODEL_PROVIDER: "local"
+      - VITA_AGENT_MODEL: "qwen-opus"
+      - VITA_AGENT_LOCAL_BASE_URL: "http://localhost:8080/v1"
+      # Thinking-ON qwen3.6 reasoning distill (model card sampling). Validated
+      # 17/17 routing + 0 honesty violations against this GGUF.
+      - VITA_AGENT_CHAT_THINKING: "1"
+      - VITA_AGENT_CHAT_TEMPERATURE: "0.6"
+      - VITA_AGENT_CHAT_TOP_P: "0.95"
+      - VITA_AGENT_CHAT_TOP_K: "20"
+      # Raised cap: reasoning tokens precede the answer; 1200 (thinking-off
+      # default) would truncate syntheses.
+      - VITA_AGENT_CHAT_MAX_TOKENS: "2500"
+
+    secrets:
+      - VITA_AGENT_GHCR_TOKEN
+      - TINFOIL_API_KEY
+      - REDPILL_API_KEY
+      - SENTRY_DSN
+      - SUPABASE_URL
+      - SUPABASE_ANON_KEY
+      - SUPABASE_INTERNAL_AUTH_EMAIL
+      - SUPABASE_INTERNAL_AUTH_PASSWORD
+      - AUBRAI_HPKE_PUBLIC_KEY
+      - X402_WALLET_PRIVATE_KEY
+
   - name: llama
     image: "ghcr.io/ggml-org/llama.cpp@sha256:aead4f4d77679873a40036c984702c8a9a52ab52275b0702e2fa68b4bc9a5f03"
     runtime: nvidia
@@ -23,12 +104,20 @@ containers:
       - "8080"
       - "-ngl"
       - "99"
+      # Bumped 8192 → 16384: prod prompt + tool schemas + injected memory +
+      # persona can exceed 8K. GGUF supports 32768; VRAM headroom is ample.
       - "-c"
-      - "8192"
+      - "16384"
       - "--jinja"
       - "--alias"
       - "qwen-opus"
 
 shim:
-  upstream-port: 8080
-  paths: [/health, /v1/models, /v1/chat/completions, /v1/completions]
+  upstream-port: 8787
+  paths:
+    - /api/health
+    - /metrics
+    - /.well-known/enclave-pubkey
+    - /api/v1/capsule
+    - /api/v1/jobs
+    - /api/v1/jobs/*
