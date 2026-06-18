@@ -1,7 +1,4 @@
-# Tinfoil Container Configuration — vita-agent model test
-# PUBLIC REPO — attestation anchor for an EPHEMERAL test container.
-# Serves a model in-enclave on the control.inf6 H200. Delete after testing.
-
+# Tinfoil Container Configuration — vita-agent model test (EPHEMERAL).
 cvm-version: 0.7.5
 cpus: 8
 memory: 65536
@@ -30,11 +27,12 @@ containers:
       - "--trust-remote-code"
       - "--max-model-len"
       - "8192"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "hermes"
+      - "--reasoning-parser"
+      - "deepseek_r1"
 
 shim:
   upstream-port: 8080
-  paths:
-    - /health
-    - /v1/models
-    - /v1/chat/completions
-    - /v1/completions
+  paths: [/health, /v1/models, /v1/chat/completions, /v1/completions]
