@@ -31,7 +31,7 @@ containers:
       - "--kv-cache-dtype"
       - "fp8"
       - "--max-model-len"
-      - "32768"
+      - "262144"
       - "--max-num-seqs"
       - "32"
       - "--gpu-memory-utilization"
