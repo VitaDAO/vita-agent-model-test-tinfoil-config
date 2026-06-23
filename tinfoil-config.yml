@@ -37,8 +37,6 @@ containers:
       - "--gpu-memory-utilization"
       - "0.90"
       - "--enable-prefix-caching"
-      - "--speculative-config"
-      - '{"method":"ngram","num_speculative_tokens":3,"prompt_lookup_max":5,"prompt_lookup_min":8}'
       - "--enable-auto-tool-choice"
       - "--tool-call-parser"
       - "qwen3_coder"
