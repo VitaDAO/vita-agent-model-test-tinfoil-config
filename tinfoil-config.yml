@@ -1,5 +1,5 @@
-# vita-model-prod — DEV SHELL: SGLang image idle (sleep), model mounted, debug+SSH.
-# Reaches ready instantly so SSH opens; I launch SGLang by hand inside to iterate with logs.
+# vita-model-prod — DEBUG SHELL: SGLang image, dummy 8080 health server (so enclave reaches
+# ready + SSH opens), model mounted. I SSH in and run SGLang by hand on :8081 to read its error.
 cvm-version: 0.7.5
 cpus: 8
 memory: 65536
@@ -19,12 +19,15 @@ containers:
     restart: always
     env:
       - SGLANG_ENABLE_SPEC_V2: "1"
-    command: ["sleep", "infinity"]
+    command:
+      - "python3"
+      - "-c"
+      - "import http.server as h,socketserver as s; H=type('H',(h.BaseHTTPRequestHandler,),{'do_GET':lambda self:[self.send_response(200),self.end_headers(),self.wfile.write(b'ok')],'log_message':lambda self,*a:None}); s.TCPServer(('0.0.0.0',8080),H).serve_forever()"
     healthcheck:
       test: ["CMD", "true"]
-      interval: 30s
+      interval: 15s
       timeout: 5s
-      start_period: 20s
+      start_period: 10s
 
 shim:
   upstream-port: 8080
