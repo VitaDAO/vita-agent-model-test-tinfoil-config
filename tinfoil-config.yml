@@ -1,6 +1,7 @@
 # vita-model-prod (model enclave) — SGLang + native MTP (NEXTN) for vita-os v5.
 # memory bumped 64->128G so the image tmpfs (memory-16G) holds both engine images.
-# Engine swap from vLLM → SGLang to enable the model's MTP head (~2x decode).
+# v0.5.4: + HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE (Tinfoil grok2 pattern, likely crash fix)
+# + expandable_segments + crash-dump logging.  Engine swap from vLLM → SGLang to enable the model's MTP head (~2x decode).
 # Same model wrap (mpk) — engine-agnostic. served-model-name kept = qwen-opus.
 cvm-version: 0.7.5
 cpus: 8
@@ -20,6 +21,9 @@ containers:
     ipc: host
     restart: always
     env:
+      - HF_HUB_OFFLINE: "1"
+      - TRANSFORMERS_OFFLINE: "1"
+      - PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
       - SGLANG_ENABLE_SPEC_V2: "1"
     command:
       - "python3"
@@ -45,6 +49,8 @@ containers:
       - "0.85"
       - "--context-length"
       - "32768"
+      - "--crash-dump-folder"
+      - "/tmp/sglang-crash"
       - "--host"
       - "127.0.0.1"
       - "--port"
