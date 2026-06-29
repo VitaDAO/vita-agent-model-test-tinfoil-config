@@ -1,6 +1,6 @@
 # vita-model-prod (model enclave) — SGLang + native MTP (NEXTN) for vita-os v5.
 # memory bumped 64->128G so the image tmpfs (memory-16G) holds both engine images.
-# v0.5.5: 256k context (--context-length 262144) + fp8 KV (validated: 170k needle recall, ~230 tok/s, stable soak). v0.5.4: + HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE (Tinfoil grok2 pattern, likely crash fix)
+# v0.5.6: 256k + bf16 KV (no fp8) + max-running-requests 24 — quality-safe, validated (pool 1.58M, ~180 tok/s, MTP, 8-concurrent soak). v0.5.5: 256k context (--context-length 262144) + fp8 KV (validated: 170k needle recall, ~230 tok/s, stable soak). v0.5.4: + HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE (Tinfoil grok2 pattern, likely crash fix)
 # + expandable_segments + crash-dump logging.  Engine swap from vLLM → SGLang to enable the model's MTP head (~2x decode).
 # Same model wrap (mpk) — engine-agnostic. served-model-name kept = qwen-opus.
 cvm-version: 0.7.5
@@ -45,8 +45,8 @@ containers:
       - "1"
       - "--speculative-num-draft-tokens"
       - "4"
-      - "--kv-cache-dtype"
-      - "fp8_e4m3"
+      - "--max-running-requests"
+      - "24"
       - "--mem-fraction-static"
       - "0.85"
       - "--context-length"
