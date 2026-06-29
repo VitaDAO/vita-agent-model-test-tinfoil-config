@@ -1,49 +1,49 @@
-# Tinfoil Container Configuration — vita-model-prod (model enclave)
-# Split from vita-agent-prod v0.12.5: this enclave runs ONLY the model (vLLM).
-# The app (vita-agent-prod) calls it over attested HTTPS. Identical vLLM container
-# + model mpk as v0.12.5 — only the shim changes (fronts vLLM /v1, not the app).
-
+# vita-model-prod (model enclave) — SGLang + native MTP (NEXTN) for vita-os v5.
+# Engine swap from vLLM → SGLang to enable the model's MTP head (~2x decode).
+# Same model wrap (mpk) — engine-agnostic. served-model-name kept = qwen-opus.
 cvm-version: 0.7.5
 cpus: 8
 memory: 65536
 gpus: 1
 
 models:
-  - name: "qwen3-6-35b-a3b-claude-4-6-opus-reasoning-distilled"
-    repo: "hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled@1b93f96111b5f32711f7d48de619e5c671331283"
-    mpk:  "0bcc0d07dd37388a5b2d407ef2f0aa94c57f15b99deba88d44a3028aa7e4bef0_71923912704_22865403-c61b-5cdd-82fe-4f40382a692b"
+  - name: "vita-os"
+    repo: "vitadao/vita-os@72162b686798ede897dc0e912bddccadd270efac"
+    mpk: "4ed77e088faab985da4d99d17366d8fef00cb17a299145edb38d62a0f8bb29d0_71960600576_74d35168-e31d-5737-b7a9-1acd4209b6eb"
 
 containers:
-  - name: vllm
-    image: "vllm/vllm-openai:v0.22.0@sha256:0fec7ec5f3e6bc168e54899935fb0557da908a4832a1dbc88e2debcf2f889416"
+  - name: sglang
+    image: "lmsysorg/sglang:v0.5.14-cu129@sha256:885da20811baa77e1c680cad0511d50efbaf94ebe43def9182bdf5290f47dbc5"
     runtime: nvidia
     gpus: all
     ipc: host
     restart: always
+    env:
+      - SGLANG_ENABLE_SPEC_V2: "1"
     command:
-      - "--model"
-      - "/tinfoil/mpk/mpk-0bcc0d07dd37388a5b2d407ef2f0aa94c57f15b99deba88d44a3028aa7e4bef0"
+      - "python3"
+      - "-m"
+      - "sglang.launch_server"
+      - "--model-path"
+      - "/tinfoil/mpk/mpk-4ed77e088faab985da4d99d17366d8fef00cb17a299145edb38d62a0f8bb29d0"
       - "--served-model-name"
       - "qwen-opus"
-      - "--language-model-only"
-      - "--dtype"
-      - "bfloat16"
-      - "--kv-cache-dtype"
-      - "fp8"
-      - "--max-model-len"
-      - "32768"
-      - "--max-num-seqs"
-      - "32"
-      - "--gpu-memory-utilization"
-      - "0.90"
-      - "--enable-prefix-caching"
-      - "--enable-auto-tool-choice"
-      - "--tool-call-parser"
-      - "qwen3_coder"
       - "--reasoning-parser"
       - "qwen3"
-      - "--scheduling-policy"
-      - "priority"
+      - "--tool-call-parser"
+      - "qwen3_coder"
+      - "--speculative-algorithm"
+      - "NEXTN"
+      - "--speculative-num-steps"
+      - "3"
+      - "--speculative-eagle-topk"
+      - "1"
+      - "--speculative-num-draft-tokens"
+      - "4"
+      - "--mem-fraction-static"
+      - "0.85"
+      - "--context-length"
+      - "32768"
       - "--host"
       - "127.0.0.1"
       - "--port"
@@ -51,11 +51,9 @@ containers:
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       start_period: 60m
 
-# Shim fronts vLLM's OpenAI-compatible API (NOT an app). The vita-agent enclave
-# calls these paths over attested HTTPS.
 shim:
   upstream-port: 8080
   paths:
