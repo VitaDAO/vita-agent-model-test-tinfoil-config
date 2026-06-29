@@ -9,9 +9,9 @@ memory: 65536
 gpus: 1
 
 models:
-  - name: "qwen3-6-35b-a3b-claude-4-6-opus-reasoning-distilled"
-    repo: "hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled@1b93f96111b5f32711f7d48de619e5c671331283"
-    mpk:  "0bcc0d07dd37388a5b2d407ef2f0aa94c57f15b99deba88d44a3028aa7e4bef0_71923912704_22865403-c61b-5cdd-82fe-4f40382a692b"
+  - name: "vita-os-v5"
+    repo: "vitadao/vita-os@72162b686798ede897dc0e912bddccadd270efac"
+    mpk:  "REGENERATE_VIA_CI"
 
 containers:
   - name: vllm
