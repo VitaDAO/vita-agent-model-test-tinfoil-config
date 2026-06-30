@@ -1,6 +1,6 @@
 cvm-version: 0.7.5
 cpus: 8
-memory: 131072
+memory: 196608
 gpus: 1
 models:
 - name: vita-os
