@@ -27,6 +27,7 @@ containers:
       - HF_HUB_OFFLINE: '1'
       - TRANSFORMERS_OFFLINE: '1'
       - PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+      - SGLANG_MAX_THINK_TOKENS: '4096'
     command:
       - python3
       - -m
@@ -40,6 +41,7 @@ containers:
       - fp8
       - --reasoning-parser
       - qwen3
+      - --enable-strict-thinking
       - --tool-call-parser
       - qwen3_coder
       - --speculative-algorithm
