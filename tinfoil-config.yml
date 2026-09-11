@@ -3,8 +3,8 @@
 cvm-version: 0.7.5
 cpus: 8
 # Diskless enclave: host RAM holds both model packages and the runtime image.
-# Keep 128 GiB; cold-start fit of this candidate must be verified on deployment.
-memory: 131072
+# Controlled 64 GiB cold-start test; production fit is not assumed.
+memory: 65536
 gpus: 1
 
 models:
