@@ -1,65 +1,103 @@
-# Tinfoil Container Configuration — vita-model-prod (model enclave)
-# Split from vita-agent-prod v0.12.5: this enclave runs ONLY the model (vLLM).
-# The app (vita-agent-prod) calls it over attested HTTPS. Identical vLLM container
-# + model mpk as v0.12.5 — only the shim changes (fronts vLLM /v1, not the app).
-
+# Fable Distill FP8 + DFlash2 on one confidential H200.
+# Target weights unchanged; the draft model proposes tokens for Fable to verify.
 cvm-version: 0.7.5
 cpus: 8
-memory: 65536
+# Diskless enclave: host RAM holds both model packages and the runtime image.
+# Keep 128 GiB; cold-start fit of this candidate must be verified on deployment.
+memory: 131072
 gpus: 1
 
 models:
-  - name: "qwen3-6-35b-a3b-claude-4-6-opus-reasoning-distilled"
-    repo: "hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled@1b93f96111b5f32711f7d48de619e5c671331283"
-    mpk:  "0bcc0d07dd37388a5b2d407ef2f0aa94c57f15b99deba88d44a3028aa7e4bef0_71923912704_22865403-c61b-5cdd-82fe-4f40382a692b"
+  - name: "qwen3-8-27b-fable-distill-fp8"
+    repo: "alexdobrin/Qwen3.8-27B-Fable-Distill-FP8@dad2544d418ffb797af211fb49e4dd770af8e33f"
+    mpk: "d3a7bc98aa8b8a1c7f4025da665a642167d806d9716d1d687ec4407cf99ebd98_30897172480_cb4975d7-de9d-52dd-b59e-09d7a85ff666"
+
+  - name: "qwen3-8-27b-dflash2"
+    repo: "incoai/Qwen3.8-27B-DFlash2@dedf8df68adfb1afeaf7b7480c0a0243108177b4"
+    mpk: "78fdfcd20864dd0e255a5bc1262568862d32b12e21aff55e3328a9492ba85b5d_3849117696_df5c8e62-91b1-5e58-ba2c-1f1257bf30a3"
 
 containers:
-  - name: vllm
-    image: "vllm/vllm-openai:v0.22.0@sha256:0fec7ec5f3e6bc168e54899935fb0557da908a4832a1dbc88e2debcf2f889416"
+  - name: sglang
+    image: ghcr.io/vitadao/vita-agent-model-sglang@sha256:6bac34322a6974d03b93c2ff8fa0cdc96510b4a7c31df78334983c2244ef8ae2
     runtime: nvidia
     gpus: all
     ipc: host
     restart: always
+    env:
+      - HF_HUB_OFFLINE: '1'
+      - TRANSFORMERS_OFFLINE: '1'
+      - PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
     command:
-      - "--model"
-      - "/tinfoil/mpk/mpk-0bcc0d07dd37388a5b2d407ef2f0aa94c57f15b99deba88d44a3028aa7e4bef0"
-      - "--served-model-name"
-      - "qwen-opus"
-      - "--language-model-only"
-      - "--dtype"
-      - "bfloat16"
-      - "--kv-cache-dtype"
-      - "fp8"
-      - "--max-model-len"
-      - "32768"
-      - "--max-num-seqs"
-      - "32"
-      - "--gpu-memory-utilization"
-      - "0.90"
-      - "--enable-prefix-caching"
-      - "--enable-auto-tool-choice"
-      - "--tool-call-parser"
-      - "qwen3_coder"
-      - "--reasoning-parser"
-      - "qwen3"
-      - "--scheduling-policy"
-      - "priority"
-      - "--host"
-      - "127.0.0.1"
-      - "--port"
-      - "8080"
+      - python3
+      - -m
+      - sglang.launch_server
+      - --model-path
+      - /tinfoil/mpk/mpk-d3a7bc98aa8b8a1c7f4025da665a642167d806d9716d1d687ec4407cf99ebd98
+      # Same id the llama.cpp deployment served, so callers need no edits.
+      - --served-model-name
+      - fable-distill
+      - --quantization
+      - fp8
+      - --reasoning-parser
+      - qwen3
+      - --tool-call-parser
+      - qwen3_coder
+      - --speculative-algorithm
+      - DFLASH
+      - --speculative-draft-model-path
+      - /tinfoil/mpk/mpk-78fdfcd20864dd0e255a5bc1262568862d32b12e21aff55e3328a9492ba85b5d
+      - --speculative-draft-model-quantization
+      - fp8
+      - --speculative-num-draft-tokens
+      - '8'
+      # Same cache strategy as the matched H200 benchmark.
+      - --mamba-radix-cache-strategy
+      - extra_buffer
+      - --mamba-full-memory-ratio
+      - '0.2'
+      - --mamba-ssm-dtype
+      - bfloat16
+      # SGLang's tuned attention-backend override is is_sm100_supported()-gated
+      # (Blackwell). The H200 is sm90, so it never fires — pin fa3 explicitly.
+      - --attention-backend
+      - fa3
+      - --page-size
+      - '64'
+      - --mem-fraction-static
+      - '0.85'
+      - --context-length
+      - '262144'
+      - --chunked-prefill-size
+      - '4096'
+      # Concurrent inference remains enabled; overlap scheduling is the default.
+      - --max-running-requests
+      - '16'
+      - --cuda-graph-max-bs-decode
+      - '16'
+      - --watchdog-timeout
+      - '600'
+      - --soft-watchdog-timeout
+      - '300'
+      - --enable-metrics
+      - --log-level
+      - warning
+      - --host
+      - 127.0.0.1
+      - --port
+      - '8080'
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
+      # Allow verified package loading and first-start kernel/graph compilation.
       start_period: 60m
 
-# Shim fronts vLLM's OpenAI-compatible API (NOT an app). The vita-agent enclave
-# calls these paths over attested HTTPS.
+# Fronts SGLang's OpenAI-compatible API over attested HTTPS.
 shim:
   upstream-port: 8080
   paths:
     - /health
+    - /metrics
     - /v1/models
     - /v1/chat/completions
     - /v1/completions
